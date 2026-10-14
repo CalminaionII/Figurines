@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<AssemblyName>Figurines</AssemblyName>
+		<RootNamespace>Figurines</RootNamespace>
+		<Platforms>AnyCPU</Platforms>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<Prefer32Bit>false</Prefer32Bit>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+
+		<!-- Keep the line numbers in the shipped .pdb, drop the personal path. -->
+		<PathMap>$(MSBuildProjectDirectory)=.</PathMap>
+	</PropertyGroup>
+
+	<!-- The fresh start (2026-10-08) needs no Attribute Rendering Library: the figurine builds
+	     its own mesh from the game's animal model (FigurineMesher), as Taxidermy does. -->
+
+	<!-- THE GAME DLLs, 1.22.7 - the version the test install runs, the same as Taxidermy. -->
+	<ItemGroup>
+		<!-- 0Harmony: one set of prefixes, the in-hand chess carving on the knife (src/Specials.cs HandCarve). pardeike/Harmony (MIT), shipped by the game. -->
+		<Reference Include="0Harmony">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\Lib\0Harmony.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="Newtonsoft.Json">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\Lib\Newtonsoft.Json.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="protobuf-net">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\Lib\protobuf-net.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="Vintagestory">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\Vintagestory.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="VintagestoryAPI">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\VintagestoryAPI.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="VintagestoryLib">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\VintagestoryLib.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="VSSurvivalMod">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\Mods\VSSurvivalMod.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="VSEssentials">
+			<HintPath>..\..\..\..\Games\Vintage Story\Story Forge\Versions\1.22.7\Mods\VSEssentials.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+	</ItemGroup>
+</Project>
