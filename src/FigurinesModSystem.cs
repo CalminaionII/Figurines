@@ -2,6 +2,8 @@ using Newtonsoft.Json.Linq;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.Config;
+using Figurines.Handbook;
 
 namespace Figurines;
 
@@ -37,11 +39,15 @@ public sealed class FigurinesModSystem : ModSystem
     public override void Dispose()
     {
         HandCarve.Remove();
+        HandbookGroups.Remove();
         base.Dispose();
     }
 
     public override void StartClientSide(ICoreClientAPI capi)
     {
+        // One handbook page per creature, flipping through its poses and casts, instead of 400+ pages (Calm, 2026-10-15;
+        // the groups are registered with the creative stacks in AssetsFinalize). Tools/Materials Kit/src/HandbookGroups.cs.
+        HandbookGroups.Apply(capi, "figurines.handbookgroups");
         // Atlas positions and uploaded meshes belong to the world being left.
         capi.Event.LeaveWorld += () => { FigurineMesher.Clear(capi); SpecialMesher.Clear(); ItemFigurine.ClearPending(); };
         // No build-everything-at-load: with every vanilla animal the antlered / horned figurines alone
@@ -139,15 +145,57 @@ public sealed class FigurinesModSystem : ModSystem
     {
         var item = api.World.GetItem(new AssetLocation("figurines:figurine"));
         if (item == null) return;
+        // cast figurines in the creative tab: copper for every creature, and the first castable metal of each other mod
+        // (Calm, 2026-10-15: vanilla plus one per mod, so a player sees a mod's metals work without a stack per metal)
+        var casts = Materials.Values.Where(m => m.Castable && m.Code == "copper")
+            .Concat(Materials.Values.Where(m => m.Castable && m.SourceMod != "game").GroupBy(m => m.SourceMod).Select(g => g.First()))
+            .Select(m => m.Code).ToList();
         var stacks = new List<JsonItemStack>();
+        var handbookCasts = new List<ItemStack>();
+        var extraMetals = Materials.Values.Where(m => m.Castable && !casts.Contains(m.Code)).ToArray();
         foreach (var def in Creatures)
         {
             foreach (var pose in def.CarvablePoses)
                 stacks.Add(Stack(item, new FigurineData { Creature = def.Code, Pose = pose.Code }));
-            foreach (var pose in def.Poses.Where(p => !p.Carvable && Material(p.Code) != null))
-                stacks.Add(Stack(item, new FigurineData { Creature = def.Code, Pose = pose.Code, Material = pose.Code }));
+            if (def.CarvablePoses.FirstOrDefault() is { } cast)
+            {
+                foreach (var metal in casts)
+                    stacks.Add(Stack(item, new FigurineData { Creature = def.Code, Pose = cast.Code, Material = metal }));
+                foreach (var metal in extraMetals)
+                    handbookCasts.Add(Stack(item, new FigurineData { Creature = def.Code, Pose = cast.Code, Material = metal.Code }).ResolvedItemstack);
+            }
+            foreach (var pose in def.Poses.Where(p => !p.Carvable && Material(p.RewardMaterial) != null))
+                stacks.Add(Stack(item, new FigurineData { Creature = def.Code, Pose = pose.Code, Material = pose.RewardMaterial }));
         }
         item.CreativeInventoryStacks = [new CreativeTabAndStackList { Tabs = ["general", "figurines"], Stacks = stacks.ToArray() }];
+        // one handbook page per FAMILY - every bear on one page, every deer on another - as Taxidermy's mounts (Calm,
+        // 2026-10-15). The family is the carving menu's: the creature's "group", else its code up to the first dash.
+        HandbookGroups.Register(item, stack => FamilyOf(FigurineData.Of(stack)?.Creature) ?? "",
+            stack => FamilyOf(FigurineData.Of(stack)?.Creature) is { } family ? Lang.Get("figurines:figurine-group", FamilyName(family)) : null,
+            handbookCasts);
+        // the page says which metals it casts in (the installed ones - a mod's metal joins the list by itself) and links the
+        // guide for the how; collectors, molds and boxes are explained there (Calm, 2026-10-16: "just want say what metals
+        // and link to the guide")
+        string MetalsText(ICoreClientAPI capi) => string.Join(", ", Materials.Values
+            .Where(m => m.Castable).Select(m => ItemFigurine.MaterialName(m.Code)).Distinct().OrderBy(name => name));
+        // not on a collector's page - those poses are never cast (Calm's screenshot, 2026-10-16)
+        HandbookGroups.AddSection(item, "figurines:handbook-metals-title", (capi, stack) =>
+            FigurineData.Of(stack) is { } data && Creature(data.Creature)?.PoseByCode(data.Pose) is { Carvable: false } ? null : MetalsText(capi));
+        HandbookGroups.AddSection(item, "figurines:handbook-guide-title", capi => Lang.Get("figurines:handbook-guide-text"));
+        // the blank, the molds (casting happens there) and the blind boxes (what each holds, from its own metals list) get
+        // the same sections (Calm, 2026-10-16: "Do all of those now")
+        foreach (var block in api.World.Blocks.Where(b => b?.Code?.Domain == "figurines"))
+        {
+            string path = block.Code.Path;
+            if (path.StartsWith("figurinemold-")) HandbookGroups.AddSection(block, "figurines:handbook-metals-title", MetalsText);
+            if (path.StartsWith("figurinebox-"))
+            {
+                var box = block;
+                HandbookGroups.AddSection(block, "figurines:handbook-box-title", capi => BoxText(box));
+            }
+            if (path == "figurineblank" || path.StartsWith("figurinemold-") || path.StartsWith("figurinebox-"))
+                HandbookGroups.AddSection(block, "figurines:handbook-guide-title", capi => Lang.Get("figurines:handbook-guide-text"));
+        }
 
         // the hand-made sets: every design of each item, in file order
         foreach (var group in Specials.GroupBy(d => d.ItemCode.ToString()))
@@ -165,7 +213,34 @@ public sealed class FigurinesModSystem : ModSystem
                 list.Add(js);
             }
             special.CreativeInventoryStacks = [new CreativeTabAndStackList { Tabs = ["general", "figurines"], Stacks = list.ToArray() }];
+            HandbookGroups.Register(special);   // one page per set: the trader figurines, the chess pieces, Dave
+            HandbookGroups.AddSection(special, "figurines:handbook-guide-title", capi => Lang.Get("figurines:handbook-guide-text"));
         }
+    }
+
+    private string FamilyOf(string creature) => creature == null ? null : Creature(creature)?.GroupCode ?? creature;
+
+    /// <summary>
+    /// A family's name for its handbook page, with a capital: lang figurines:creaturegroup-&lt;family&gt; if there is one, else the
+    /// name of the creature whose code IS the family ("bear"), else the family code.
+    /// </summary>
+    private string FamilyName(string family)
+    {
+        string name = Lang.HasTranslation("figurines:creaturegroup-" + family) ? Lang.Get("figurines:creaturegroup-" + family)
+            : Creature(family) != null ? ItemFigurine.CreatureName(family) : family.Replace('-', ' ');
+        return string.IsNullOrEmpty(name) ? name : char.ToUpperInvariant(name[0]) + name.Substring(1);
+    }
+
+    /// <summary>"75% Iron, 25% Platinum" - a blind box's attributes.metals weights as shares, largest first.</summary>
+    private static string BoxText(Block box)
+    {
+        var metals = box.Attributes?["metals"];
+        if (metals == null || !metals.Exists || metals.Token is not JObject weights) return null;
+        var list = weights.Properties().Select(p => (code: p.Name, weight: (double?)p.Value ?? 0)).Where(p => p.weight > 0).ToList();
+        double total = list.Sum(p => p.weight);
+        if (total <= 0) return null;
+        return string.Join(", ", list.OrderByDescending(p => p.weight)
+            .Select(p => Math.Round(p.weight * 100 / total) + "% " + ItemFigurine.MaterialName(p.code)));
     }
 
     private static JsonItemStack Stack(Item item, FigurineData data)

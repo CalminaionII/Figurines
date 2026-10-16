@@ -282,8 +282,7 @@ public sealed class BlockFigurineMoldFired : BlockToolMold
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
     {
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
-        Mold.Info(dsc, Mold.DesignOf(inSlot.Itemstack), false);
-        dsc.AppendLine(Lang.Get("figurines:mold-metals", string.Join(", ", CastableMetals(this).Select(m => ItemFigurine.MaterialName(m)))));
+        Mold.Info(dsc, Mold.DesignOf(inSlot.Itemstack), false);   // the metals are on its handbook page (Calm, 2026-10-16)
     }
 
     /// <summary>The metals this mold takes: every material marked <c>castable</c> in the materials files.</summary>
@@ -310,11 +309,15 @@ public sealed class BEFigurineMoldFired : BlockEntityToolMold, ILiquidMetalSink
     /// <summary>The metal in it: "copper" from ingot-copper.</summary>
     private string Metal => MetalContent?.Collectible.Variant["metal"] ?? MetalContent?.Collectible.LastCodePart();
 
+    // The game's own check (vssurvivalmod BlockEntityToolMold.CanReceive) with our metals list in place of its
+    // GetMoldedStacks: that reads the blocktype's "drop", which is GONE - the handbook built a "Can be used to mold" row
+    // from it, the same design-less item over and over (Calm's screenshot, 2026-10-16). The metals are on the page instead.
     public new bool CanReceive(ItemStack metal)
     {
-        if (Design == null || metal == null) return false;
+        if (Design == null || metal == null || Shattered) return false;
         string code = metal.Collectible.Variant["metal"] ?? metal.Collectible.LastCodePart();
-        return BlockFigurineMoldFired.CastableMetals(Block).Contains(code) && base.CanReceive(metal);
+        if (!BlockFigurineMoldFired.CastableMetals(Block).Contains(code)) return false;
+        return MetalContent == null || (MetalContent.Collectible.Equals(MetalContent, metal, GlobalConstants.IgnoredStackAttributes) && !IsFull);
     }
 
     /// <summary>The finished figurine, if the mold is full and the metal hard; null otherwise.</summary>
@@ -357,6 +360,8 @@ public sealed class BEFigurineMoldFired : BlockEntityToolMold, ILiquidMetalSink
     public override void GetBlockInfo(IPlayer forPlayer, StringBuilder dsc)
     {
         Mold.Info(dsc, Design, false);
+        // the game's shattered line reads the molded stacks from "drop", which these molds no longer have
+        if (Shattered) { dsc.AppendLine(Lang.Get("figurines:mold-shattered")); return; }
         base.GetBlockInfo(forPlayer, dsc);
     }
 }

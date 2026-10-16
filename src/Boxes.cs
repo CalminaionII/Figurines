@@ -7,12 +7,12 @@ namespace Figurines;
 
 /// <summary>
 /// The blind box (Calm, 2026-10-08). Break it open and you get one figurine - which animal is the
-/// surprise. The TRADER box (one vanilla trader sells it) holds silver or gold, the RUIN box (ruin
-/// loot) always platinum; either way the figurine is in that metal's own collector pose. Nothing on
+/// surprise. The TRADER box (one vanilla trader sells it) holds iron or platinum, the RUIN box (ruin
+/// loot) always uranium; either way the figurine is in that metal's own collector pose. Nothing on
 /// the outside says which metal is in a trader box.
 ///
 /// What a box can hold comes from the block's <c>metals</c> attribute (metal -> weight) and the
-/// creature definitions: a creature is a candidate for a metal when it has a pose of that name.
+/// creature definitions: a creature is a candidate for a metal when a collector pose names it as its reward.
 /// Nothing in here lists animals, so a new creature file is in the boxes at once.
 /// </summary>
 public sealed class BlockFigurineBox : Block
@@ -43,7 +43,8 @@ public sealed class BlockFigurineBox : Block
         {
             if (system.Material(m) == null) continue;
             foreach (var def in system.Creatures)
-                if (def.PoseByCode(m) != null) found.Add(new FigurineData { Creature = def.Code, Pose = m, Material = m });
+                foreach (var pose in def.Poses.Where(p => !p.Carvable && p.RewardMaterial == m))
+                    found.Add(new FigurineData { Creature = def.Code, Pose = pose.Code, Material = m });
         }
         return found;
     }
@@ -123,3 +124,4 @@ public sealed class BEFigurineBox : BlockEntity
         return true;
     }
 }
+

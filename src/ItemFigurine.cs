@@ -45,7 +45,8 @@ public sealed class ItemFigurine : Item, IContainedMeshSource, IDisplayableProps
         var first = api.ModLoader.GetModSystem<FigurinesModSystem>().Creatures.FirstOrDefault();
         if (first == null) return null;
         string material = AnyMaterialOf(stack) ?? "wood";
-        return new FigurineData { Creature = first.Code, Material = material, Pose = first.PoseByCode(material) != null ? material : "normal" };
+        var collector = first.Poses.FirstOrDefault(p => !p.Carvable && p.RewardMaterial == material);
+        return new FigurineData { Creature = first.Code, Material = material, Pose = collector?.Code ?? "normal" };
     }
 
     public override string GetHeldItemName(ItemStack itemStack)
@@ -92,12 +93,29 @@ public sealed class ItemFigurine : Item, IContainedMeshSource, IDisplayableProps
         base.GetHeldItemInfo(inSlot, dsc, world, withDebugInfo);
         var data = FigurineData.Of(inSlot.Itemstack);
         if (data == null) return;
+        // A collector's piece is a pose nobody can carve: it says which blind box it comes from instead of "Cast in" -
+        // it cannot be cast (Calm, 2026-10-16: "it can be bought from the trader instead of metal cast")
+        var def = FigurinesModSystem.Instance?.Creature(data.Creature);
+        if (def?.PoseByCode(data.Pose) is { Carvable: false })
+        {
+            string box = CollectorBox(world, data.Material);
+            dsc.AppendLine(Lang.Get(box != null ? "figurines:figurine-collector-" + box : "figurines:figurine-collector"));
+            return;
+        }
         dsc.AppendLine(data.Material == "wood"
             ? Lang.Get("figurines:figurine-carved")
             : Lang.Get("figurines:figurine-cast", MaterialName(data.Material).ToLowerInvariant()));
-        // A collector's piece is a pose nobody can carve (silver / gold / platinum).
-        var def = FigurinesModSystem.Instance?.Creature(data.Creature);
-        if (def?.PoseByCode(data.Pose) is { Carvable: false }) dsc.AppendLine(Lang.Get("figurines:figurine-collector"));
+    }
+
+    /// <summary>"trader" or "ruin": the blind box whose <c>metals</c> list holds this metal (figurinebox.json), else null.</summary>
+    private static string CollectorBox(IWorldAccessor world, string material)
+    {
+        foreach (var box in new[] { "trader", "ruin" })
+        {
+            var metals = world?.GetBlock(new AssetLocation("figurines:figurinebox-" + box))?.Attributes?["metals"];
+            if (metals != null && metals.Exists && metals[material].Exists) return box;
+        }
+        return null;
     }
 
     /// <summary>

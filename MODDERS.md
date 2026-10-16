@@ -30,9 +30,9 @@ Your creature is in the carving window at the figurine blank and in the creative
     "poses": [
       { "code": "normal", "carvable": true },
       { "code": "walking", "carvable": true, "animation": "walk", "frame": 8 },
-      { "code": "silver", "animation": "sit", "frame": 15 },
-      { "code": "gold", "animation": "attack", "frame": 12 },
-      { "code": "platinum", "animation": "sleep", "frame": 20 }
+      { "code": "silver", "collectorMaterial": "iron", "animation": "sit", "frame": 15 },
+      { "code": "gold", "collectorMaterial": "platinum", "animation": "attack", "frame": 12 },
+      { "code": "platinum", "collectorMaterial": "uranium", "animation": "sleep", "frame": 20 }
     ]
   }
 ]
@@ -52,9 +52,9 @@ Only **code**, **entity** and **poses** are required. Each field is explained in
     "poses": [
       { "code": "normal", "carvable": true },
       { "code": "walking", "carvable": true, "animation": "walk", "frame": 8 },
-      { "code": "silver", "animation": "sit", "frame": 15 },
-      { "code": "gold", "animation": "attack", "frame": 12 },
-      { "code": "platinum", "animation": "sleep", "frame": 20 }
+      { "code": "silver", "collectorMaterial": "iron", "animation": "sit", "frame": 15 },
+      { "code": "gold", "collectorMaterial": "platinum", "animation": "attack", "frame": 12 },
+      { "code": "platinum", "collectorMaterial": "uranium", "animation": "sleep", "frame": 20 }
     ],
     "attachments": [ "yourmod:ear-tufts" ],
     "removeElements": [ "eye", "lid", "sleep", "whiskers" ],
@@ -80,15 +80,16 @@ Only **code**, **entity** and **poses** are required. Each field is explained in
 | `size` | The figurine's longest side - length or height - in its normal pose, in blocks. Left out, it is worked out true to scale from the entity's own size (see *Figurine Sizes*), which keeps a bear bigger than a hare. Every pose uses the same scale. |
 | **Listing - all optional** |  |
 | `name` | Lang key for its name. Left out: `figurines:creature-<code>` if that exists, else the game's own name for the entity - so a modded animal needs no lang file. |
-| `group` | The family it is listed under in the carving menu. Default: the code up to its first dash, so `bear-panda` is a Bear and `lynx` a Lynx. A mod adding a bear of its own sets `"bear"` here to list it with the game's. |
+| `group` | The family it is listed under in the carving menu, and the handbook page it shares - every creature of a family is on one page. Default: the code up to its first dash, so `bear-panda` is a Bear and `lynx` a Lynx. A mod adding a bear of its own sets `"bear"` here to list it with the game's. The page is named after the creature whose code is the family; the lang key `figurines:creaturegroup-<family>` names it instead. |
 | `category` | `animal` (the default) or `hostile` - which filter tab of the carving window it is under. |
 | `enabled` | False hides a creature. A patch onto our file can turn off one of ours this way. |
 
 ### Poses
 
-| `code` | `normal` or any name of your own for a pose that can be carved, or `silver` / `gold` / `platinum` for the collector pose in that metal. |
+| `code` | `normal` or any name of your own for a pose that can be carved, or `silver` / `gold` / `platinum` for a collector pose. |
 |---|---|
 | `carvable` | True: offered at the figurine blank. Collector poses never are. |
+| `collectorMaterial` | The metal a collector pose comes in - `iron` / `platinum` from the Treasure Hunter's blind box, `uranium` from the weathered box in ruins. Left out: the pose code is the metal. Change this, never the pose code - figurines already made keep the pose code they were saved with. |
 | `animation` | An animation code from the entity's shape. Left out: the model's rest pose. |
 | `frame` | The zero-based frame of that animation to freeze at. A frame past the end is held at the last one. |
 
@@ -104,6 +105,7 @@ Materials live in `config/figurines/materials.json`. Each has:
 |---|---|
 | `texture` | The texture painted on every face of the model. |
 | `castable` | True lets the fired mold take this metal. |
+| `source` | Optional. The mod the metal belongs to, when its texture is in the game's domain (Pewter's is) - it then counts as that mod's: one figurine of it per creature in the creative menu. Left out: the texture's domain. |
 
 The name comes from `figurines:material-<code>`, else the game's own `material-<code>` (every vanilla metal has one), else the code. Add a material with a patch onto ours - this is the pewter patch Figurines ships:
 
@@ -115,7 +117,7 @@ The name comes from `figurines:material-<code>`, else the game's own `material-<
     "file": "figurines:config/figurines/materials.json",
     "dependsOn": [ { "modid": "pewter" } ],
     "value": [
-      { "code": "pewter", "texture": "game:block/metal/plate/pewter", "castable": true }
+      { "code": "pewter", "texture": "game:block/metal/plate/pewter", "castable": true, "source": "pewter" }
     ]
   }
 ]

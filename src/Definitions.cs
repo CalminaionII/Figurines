@@ -83,6 +83,12 @@ public sealed class FigurinePose
 
     /// <summary>Offered at the blank - the standing ("normal") pose and one more (Calm, 2026-10-08). Collector poses never are.</summary>
     public bool Carvable { get; set; }
+
+    /// <summary>Reward metal for this collector pose. Omitted = the pose code, for existing addon definitions.
+    /// Separate from Code so changing new rewards never renames a pose saved on existing figurines.</summary>
+    public string CollectorMaterial { get; set; }
+
+    public string RewardMaterial => CollectorMaterial ?? Code;
 }
 
 /// <summary>What a figurine is made of, and how it is painted. From config/figurines/materials.json.</summary>
@@ -99,6 +105,17 @@ public sealed class MaterialDefinition
     /// metal with one materials file; a file loaded later may change an entry by repeating its code.
     /// </summary>
     public bool Castable { get; set; }
+
+    /// <summary>
+    /// The mod the material comes from, when its texture is in the game's domain but the game does not have it (Pewter
+    /// ships game:block/metal/plate/pewter). Left out = the game's. Decides the creative tab (one stack per mod) and the
+    /// handbook's "Can be made with" line.
+    /// </summary>
+    public string Source { get; set; }
+
+    /// <summary>The mod id this material counts as: <see cref="Source"/>, else the texture's domain.</summary>
+    public string SourceMod => !string.IsNullOrEmpty(Source) ? Source
+        : Texture != null && Texture.Contains(':') ? Texture.Substring(0, Texture.IndexOf(':')) : "game";
 }
 
 /// <summary>
